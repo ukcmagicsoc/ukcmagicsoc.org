@@ -1,5 +1,9 @@
 *** Pico Changelog ***
 
+2013.08.13 - version 0.7a8
+ * [new] Titles now selected from first heading if not provided in meta
+ * [fixed] No longer loading temp files created by Emacs (~) and Nano (#)
+
 2013.07.21 - version 0.7a2
  * [new] Added ability to use custom meta data 
  * [new] Added ability to choose custom template per page
