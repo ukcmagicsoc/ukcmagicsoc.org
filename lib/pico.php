@@ -156,8 +156,9 @@ class Pico {
 		$headers = array(
 			'title'       	=> 'Title',
 			'description' 	=> 'Description',
-			'author' 		=> 'Author',
-			'date' 			=> 'Date',
+			'author' 	=> 'Author',
+			'tags' 		=> 'Tags',//tags 2 - Sometime is nice to have a tag system or category
+			'date' 		=> 'Date',
 			'robots'     	=> 'Robots',
 			'template'      => 'Template'
 		);
@@ -243,6 +244,7 @@ class Pico {
 				'title' => isset($page_meta['title']) ? $page_meta['title'] : '',
 				'url' => $url,
 				'author' => isset($page_meta['author']) ? $page_meta['author'] : '',
+				'tags' => isset($page_meta['tags']) ? $page_meta['tags'] : '',//tags 2 - Sometime is nice to have a tag system or category
 				'date' => isset($page_meta['date']) ? $page_meta['date'] : '',
 				'date_formatted' => isset($page_meta['date']) ? date($config['date_format'], strtotime($page_meta['date'])) : '',
 				'content' => $page_content,
