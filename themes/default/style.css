@@ -29,6 +29,7 @@ body {
 	line-height: 1;
 	color: black;
 	background: white;
+	min-width: 320px;
 }
 
 table {
@@ -201,14 +202,15 @@ blockquote {
 /* Structure Styles
 /*---------------------------------------------*/
 .inner {
-	width: 850px;
+	max-width: 850px;
 	margin: 0 auto;
+	padding: 0 20px;
 }
 
 #header {
 	background: #2EAE9B;
 	padding: 60px 0;
-	margin-bottom: 80px;
+	margin-bottom: 40px;
 	color: #afe1da;
 }
 #header a { color: #afe1da; }
