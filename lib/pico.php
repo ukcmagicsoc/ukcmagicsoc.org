@@ -1,12 +1,13 @@
 <?php
 use \Michelf\MarkdownExtra;
+
 /**
  * Pico
  *
  * @author Gilbert Pellegrom
  * @link http://pico.dev7studios.com
  * @license http://opensource.org/licenses/MIT
- * @version 0.6.2
+ * @version 0.8
  */
 class Pico {
 
@@ -21,6 +22,10 @@ class Pico {
 		// Load plugins
 		$this->load_plugins();
 		$this->run_hooks('plugins_loaded');
+
+		// Load the settings
+		$settings = $this->get_config();
+		$this->run_hooks('config_loaded', array(&$settings));
 
 		// Get request url and script url
 		$url = '';
@@ -51,15 +56,15 @@ class Pico {
 		}
 		$this->run_hooks('after_load_content', array(&$file, &$content));
 
-		// Load the settings
-		$settings = $this->get_config();
-		$this->run_hooks('config_loaded', array(&$settings));
-
 		$meta = $this->read_file_meta($content);
 		$this->run_hooks('file_meta', array(&$meta));
-		$content = $this->parse_content($content);
-		$this->run_hooks('content_parsed', array(&$content));
 
+		$this->run_hooks('before_parse_content', array(&$content));
+		$content = $this->parse_content($content);
+
+		$this->run_hooks('after_parse_content', array(&$content));
+		$this->run_hooks('content_parsed', array(&$content)); // Depreciated @ v0.8
+		
 		// Get all the pages
 		$pages = $this->get_pages($settings['base_url'], $settings['pages_order_by'], $settings['pages_order'], $settings['excerpt_length']);
 		$prev_page = array();
@@ -97,11 +102,13 @@ class Pico {
 			'next_page' => $next_page,
 			'is_front_page' => $url ? false : true,
 		);
+
 		// use a custom template if specified Template: [filename] in page meta e.g. Template: spesh to try and use spesh.html in theme folder
 		$template = ((isset($meta['template']) && file_exists($twig_vars['theme_dir'].'/'.$meta['template'].'.html')) ? $meta['template'].'.html' : 'index.html');
 
 		$this->run_hooks('before_render', array(&$twig_vars, &$twig));
 		$output = $twig->render($template, $twig_vars);
+
 		$this->run_hooks('after_render', array(&$output));
 		echo $output;
 	}
@@ -109,7 +116,7 @@ class Pico {
 	/**
 	 * Load any plugins
 	 */
-	private function load_plugins()
+	protected function load_plugins()
 	{
 		$this->plugins = array();
 		$plugins = $this->get_files(PLUGINS_DIR, '.php');
@@ -131,7 +138,7 @@ class Pico {
 	 * @param string $content the raw txt content
 	 * @return string $content the Markdown formatted content
 	 */
-	private function parse_content($content)
+	protected function parse_content($content)
 	{
 		$content = preg_replace('#/\*.+?\*/#s', '', $content); // Remove comments and meta
 		$content = str_replace('%base_url%', $this->base_url(), $content);
@@ -146,36 +153,31 @@ class Pico {
 	 * @param string $content the raw txt content
 	 * @return array $headers an array of meta values
 	 */
-	private function read_file_meta($content)
+	protected function read_file_meta($content)
 	{
 		global $config;
-		$headers = array();
+		
+		$headers = array(
+			'title'       	=> 'Title',
+			'description' 	=> 'Description',
+			'author' 		=> 'Author',
+			'date' 			=> 'Date',
+			'robots'     	=> 'Robots',
+			'template'      => 'Template'
+		);
 
-		preg_match('/\/\*.*?\*\//ism', $content, $match);
-		$content = $match[0];
+		// Add support for custom headers by hooking into the headers array
+		$this->run_hooks('before_read_file_meta', array(&$headers));
 
-		// parse values and custom fields, add to headers array
-		$rval = preg_match_all('/^(.*):(.*)$/mi', $content, $matches);
-		if($rval){
-			for($m=0;$m<count($matches[1]);$m++){
-				$field = trim(strtolower($matches[1][$m]));
-				$headers[$field] = trim($matches[2][$m]);
+	 	foreach ($headers as $field => $regex){
+			if (preg_match('/^[ \t\/*#@]*' . preg_quote($regex, '/') . ':(.*)$/mi', $content, $match) && $match[1]){
+				$headers[ $field ] = trim(preg_replace("/\s*(?:\*\/|\?>).*/", '', $match[1]));
+			} else {
+				$headers[ $field ] = '';
 			}
 		}
 		
 		if(isset($headers['date'])) $headers['date_formatted'] = date($config['date_format'], strtotime($headers['date']));
-
-		if(empty($headers['title'])){
-			preg_match('/^(.+?)[ ]*\n(=+|-+)[ ]*\n+/imu',$content,$matches);
-			if(count($matches) > 0){
-					$headers['title'] = $matches[1];
-			}else{
-				preg_match('/^\#{1}([^\#].*)$/imu',$content,$matches);
-				if(count($matches) > 0){
-					$headers['title'] = $matches[1];
-				}
-			}
-		}
 
 		return $headers;
 	}
@@ -185,7 +187,7 @@ class Pico {
 	 *
 	 * @return array $config an array of config values
 	 */
-	private function get_config()
+	protected function get_config()
 	{
 		global $config;
 		@include_once(ROOT_DIR .'config.php');
@@ -215,7 +217,7 @@ class Pico {
 	 * @param string $order order "asc" or "desc"
 	 * @return array $sorted_pages an array of pages
 	 */
-	private function get_pages($base_url, $order_by = 'alpha', $order = 'asc', $excerpt_length = 50)
+	protected function get_pages($base_url, $order_by = 'alpha', $order = 'asc', $excerpt_length = 50)
 	{
 		global $config;
 
@@ -242,19 +244,20 @@ class Pico {
 			$url = str_replace(CONTENT_DIR, $base_url .'/', $page);
 			$url = str_replace('index'. CONTENT_EXT, '', $url);
 			$url = str_replace(CONTENT_EXT, '', $url);
-			$data = array();
-			// these are generic fields that are added
-			foreach ($page_meta as $key => $value) {
-				$data[$key] = isset($page_meta[$key]) ? $value : null;
-			}
-			// these are special fields and need to be overwritten
-			$extras = array(
+
+			$data = array(
+				'title' => isset($page_meta['title']) ? $page_meta['title'] : '',
 				'url' => $url,
-				'date_formatted' => isset($page_meta['date']) ? date($config['date_format'], strtotime($page_meta['date'])) : null,
+				'author' => isset($page_meta['author']) ? $page_meta['author'] : '',
+				'date' => isset($page_meta['date']) ? $page_meta['date'] : '',
+				'date_formatted' => isset($page_meta['date']) ? date($config['date_format'], strtotime($page_meta['date'])) : '',
 				'content' => $page_content,
 				'excerpt' => $this->limit_words(strip_tags($page_content), $excerpt_length)
 			);
-			$data = array_merge($data, $extras);
+
+			// Extend the data provided with each page by hooking into the data array
+			$this->run_hooks('get_page_data', array(&$data, $page_meta));
+
 			if($order_by == 'date' && isset($page_meta['date'])){
 				$sorted_pages[$page_meta['date'].$date_id] = $data;
 				$date_id++;
@@ -274,7 +277,7 @@ class Pico {
 	 * @param string $hook_id the ID of the hook
 	 * @param array $args optional arguments
 	 */
-	private function run_hooks($hook_id, $args = array())
+	protected function run_hooks($hook_id, $args = array())
 	{
 		if(!empty($this->plugins)){
 			foreach($this->plugins as $plugin){
@@ -290,7 +293,7 @@ class Pico {
 	 *
 	 * @return string the base url
 	 */
-	private function base_url()
+	protected function base_url()
 	{
 		global $config;
 		if(isset($config['base_url']) && $config['base_url']) return $config['base_url'];
@@ -309,10 +312,13 @@ class Pico {
 	 *
 	 * @return string the current protocol
 	 */
-	private function get_protocol()
+	protected function get_protocol()
 	{
-		preg_match("|^HTTP[S]?|is",$_SERVER['SERVER_PROTOCOL'],$m);
-		return strtolower($m[0]);
+		$protocol = 'http';
+		if(isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off'){
+			$protocol = 'https';
+		}
+		return $protocol;
 	}
 
 	/**
@@ -321,8 +327,8 @@ class Pico {
 	 * @param string $directory start directory
 	 * @param string $ext optional limit to file extensions
 	 * @return array the matched files
-	 */
-	private function get_files($directory, $ext = '')
+	 */ 
+	protected function get_files($directory, $ext = '')
 	{
 	    $array_items = array();
 	    if($handle = opendir($directory)){
@@ -347,12 +353,13 @@ class Pico {
 	 * @param string $string the given string
 	 * @param int $word_limit the number of words to limit to
 	 * @return string the limited string
-	 */
-	private function limit_words($string, $word_limit)
+	 */ 
+	protected function limit_words($string, $word_limit)
 	{
 		$words = explode(' ',$string);
-		return trim(implode(' ', array_splice($words, 0, $word_limit))) .'...';
+		$excerpt = trim(implode(' ', array_splice($words, 0, $word_limit)));
+		if(count($words) > $word_limit) $excerpt .= '&hellip;';
+		return $excerpt;
 	}
 
 }
-
