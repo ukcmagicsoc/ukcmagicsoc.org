@@ -104,10 +104,10 @@ class Pico {
 		);
 
 		// use a custom template if specified Template: [filename] in page meta e.g. Template: spesh to try and use spesh.html in theme folder
-		$template = ((isset($meta['template']) && file_exists($twig_vars['theme_dir'].'/'.$meta['template'].'.html')) ? $meta['template'].'.html' : 'index.html');
+		$template = ((isset($meta['template']) && file_exists($twig_vars['theme_dir'].'/'.$meta['template'].'.html')) ? $meta['template'] : 'index');
 
-		$this->run_hooks('before_render', array(&$twig_vars, &$twig));
-		$output = $twig->render($template, $twig_vars);
+		$this->run_hooks('before_render', array(&$twig_vars, &$twig, &$template));
+		$output = $twig->render($template . '.html', $twig_vars);
 
 		$this->run_hooks('after_render', array(&$output));
 		echo $output;
