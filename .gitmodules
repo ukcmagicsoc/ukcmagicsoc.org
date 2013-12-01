@@ -1,0 +1,6 @@
+[submodule "content"]
+	path = content
+	url = git@github.com:ukcmagicsoc/ukcmagicsoc-content.git
+[submodule "themes/ukcmagicsoc"]
+	path = themes/ukcmagicsoc
+	url = git@github.com:ukcmagicsoc/ukcmagicsoc-theme.git
