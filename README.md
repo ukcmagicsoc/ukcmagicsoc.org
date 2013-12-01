@@ -1,6 +1,5 @@
-Pico
-====
+# UKC Magic Society Website
 
-Pico is a stupidly simple, blazing fast, flat file CMS. See http://pico.dev7studios.com for more info.
+[ukcmagicsoc.org](http://ukcmagicsoc.org) is based on [Pico](http://pico.dev7studios.com/) and [Foundation](http://foundation.zurb.com/).
 
-[![I Love Open Source](http://www.iloveopensource.io/images/logo-lightbg.png)](http://www.iloveopensource.io/projects/524c55dcca7964c617000756)
+This repo contains the configured version of Pico that drives the rest of the site.
